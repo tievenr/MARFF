@@ -13,7 +13,13 @@
     <xacro:property name="launcher_base_size" value="0.3" />
     <xacro:property name="launcher_height" value="0.25" />
     <xacro:property name="launcher_radius" value="0.08" />
-    <xacro:property name="storage_height" value="0.1" />
+
+    <!-- New magazine properties -->
+    <xacro:property name="magazine_width" value="0.08" />
+    <xacro:property name="magazine_length" value="0.08" />
+    <xacro:property name="magazine_height" value="0.3" />
+    <xacro:property name="magazine_wall_thickness" value="0.005" />
+    <xacro:property name="door_thickness" value="0.005" />
     <xacro:property name="ball_radius" value="0.03" />
     <!-- Removed redefining pi as it's already defined in ROS xacro -->
 
@@ -110,35 +116,72 @@
     <xacro:wheel_link name="rear_right" x="-${wheel_separation_length/2}"
         y="-${wheel_separation_width/2}" />
 
-    <!-- Ball Storage Compartment -->
-    <link name="storage_compartment">
+    <!-- New Ball Magazine (Hollow Rectangular Tube) -->
+    <link name="ball_magazine">
         <visual>
-            <origin xyz="0 0 ${storage_height/2}" rpy="0 0 0" />
             <geometry>
-                <box size="${base_length*0.8} ${base_width*0.8} ${storage_height}" />
+                <!-- For the visual, you would ideally use a mesh file from Blender -->
+                <!-- placeholder using boxes to create a hollow tube -->
+                <mesh filename="file://$(find rviz_simulation)/meshes/visual/ball_storage.st"
+                    scale="1 1 1" />
+                <!-- Fallback if mesh not available -->
+                <!--
+                <box size="${magazine_length} ${magazine_width} ${magazine_height}" />
+                -->
             </geometry>
-            <material name="blue" />
+            <material name="silver" />
         </visual>
         <collision>
-            <origin xyz="0 0 ${storage_height/2}" rpy="0 0 0" />
             <geometry>
-                <box size="${base_length*0.8} ${base_width*0.8} ${storage_height}" />
+                <box size="${magazine_length} ${magazine_width} ${magazine_height}" />
             </geometry>
         </collision>
         <inertial>
-            <origin xyz="0 0 ${storage_height/2}" rpy="0 0 0" />
-            <mass value="3.0" />
-            <inertia ixx="0.05" ixy="0.0" ixz="0.0" iyy="0.05" iyz="0.0" izz="0.08" />
+            <mass value="2.0" />
+            <inertia ixx="0.03" ixy="0.0" ixz="0.0" iyy="0.03" iyz="0.0" izz="0.01" />
         </inertial>
     </link>
 
-    <joint name="storage_joint" type="fixed">
+    <joint name="magazine_joint" type="fixed">
         <parent link="base_link" />
-        <child link="storage_compartment" />
+        <child link="ball_magazine" />
         <origin xyz="0 0 ${base_height}" rpy="0 0 0" />
     </joint>
 
-    <!-- Ball Launcher Base (Square platform) -->
+    <!-- Magazine Door (Sliding Upward) -->
+    <link name="magazine_door">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box
+                    size="${magazine_length-magazine_wall_thickness*2} ${magazine_width-magazine_wall_thickness*2} ${door_thickness}" />
+            </geometry>
+            <material name="green" />
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box
+                    size="${magazine_length-magazine_wall_thickness*2} ${magazine_width-magazine_wall_thickness*2} ${door_thickness}" />
+            </geometry>
+        </collision>
+        <inertial>
+            <mass value="0.1" />
+            <inertia ixx="0.00001" ixy="0" ixz="0" iyy="0.00001" iyz="0" izz="0.00002" />
+        </inertial>
+    </link>
+
+    <joint name="magazine_door_joint" type="prismatic">
+        <parent link="ball_magazine" />
+        <child link="magazine_door" />
+        <!-- Position at the bottom of the magazine -->
+        <origin xyz="0 0 -${magazine_height/2 + door_thickness/2}" rpy="0 0 0" />
+        <axis xyz="0 0 1" /> <!-- Door slides upward -->
+        <limit lower="0" upper="0.07" effort="10" velocity="0.5" /> <!-- How far the door can slide
+        up -->
+    </joint>
+
+    <!-- Ball Launcher Base -->
     <link name="launcher_base">
         <visual>
             <origin xyz="0 0 ${launcher_base_height/2}" rpy="0 0 0" />
@@ -161,9 +204,9 @@
     </link>
 
     <joint name="launcher_base_joint" type="fixed">
-        <parent link="storage_compartment" />
+        <parent link="ball_magazine" />
         <child link="launcher_base" />
-        <origin xyz="0 0 ${storage_height}" rpy="0 0 0" />
+        <origin xyz="0 0 -${magazine_height/2 + launcher_base_height/2}" rpy="0 0 0" />
     </joint>
 
     <!-- Launcher Turret (can rotate 360 degrees) -->
